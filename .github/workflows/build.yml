@@ -19,6 +19,10 @@ jobs:
         run: unzip -oq BirdBazaar.zip -d app
       - run: cd app && npm install
       - run: cd app && npx cap add android
+      - name: Add Firebase config
+        run: |
+          test -s app/firebase/google-services.json || { echo "::error::firebase/google-services.json is missing inside BirdBazaar.zip"; exit 1; }
+          cp app/firebase/google-services.json app/android/app/google-services.json
       - run: cd app && cp -r android-res/* android/app/src/main/res/
       - name: Set version
         run: |
@@ -30,6 +34,9 @@ jobs:
           cp debug.keystore ~/.android/debug.keystore
       - run: cd app && npx cap sync android
       - run: cd app/android && chmod +x gradlew && ./gradlew assembleDebug
+      - name: Check Firebase is in the build (info only)
+        continue-on-error: true
+        run: grep -rq google_app_id app/android/app/build --include=values.xml
       - uses: actions/upload-artifact@v4
         with:
           name: BirdBazaar-APK
