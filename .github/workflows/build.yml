@@ -41,3 +41,21 @@ jobs:
         with:
           name: BirdBazaar-APK
           path: app/android/app/build/outputs/apk/debug/app-debug.apk
+      - name: Build release (unsigned)
+        run: cd app/android && ./gradlew assembleRelease
+      - name: Sign release APK
+        env:
+          RELEASE_PASS: ${{ secrets.RELEASE_PASS }}
+        run: |
+          test -n "$RELEASE_PASS" || { echo "::error::Secret RELEASE_PASS is missing (Settings > Secrets and variables > Actions)"; exit 1; }
+          test -s app/keystore/release.keystore || { echo "::error::keystore/release.keystore is missing inside BirdBazaar.zip"; exit 1; }
+          BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          U=$(find app/android/app/build/outputs/apk/release -name "*.apk" | head -1)
+          test -s "$U" || { echo "::error::release apk not found"; exit 1; }
+          $BT/zipalign -p -f 4 "$U" /tmp/aligned.apk
+          $BT/apksigner sign --ks app/keystore/release.keystore --ks-key-alias bbrelease --ks-pass env:RELEASE_PASS --key-pass env:RELEASE_PASS --out BirdBazaar-release.apk /tmp/aligned.apk
+          $BT/apksigner verify --print-certs BirdBazaar-release.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BirdBazaar-RELEASE
+          path: BirdBazaar-release.apk
